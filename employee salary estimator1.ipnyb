@@ -1,0 +1,63 @@
+import pandas as pd
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelEncoder
+import numpy as np
+
+# Load the dataset
+df = pd.read_excel("adult 3.xlsx")
+df.dropna(inplace=True)
+
+# Encode categorical features
+label_encoders = {}
+for col in df.select_dtypes(include='object').columns:
+    le = LabelEncoder()
+    df[col] = le.fit_transform(df[col])
+    label_encoders[col] = le
+
+# Identify target and features
+target = 'salary' if 'salary' in df.columns else df.columns[-1]
+X = df.drop(columns=[target])
+y = df[target]
+
+# Train/test split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Train model
+model = RandomForestRegressor(n_estimators=100, random_state=42)
+model.fit(X_train, y_train)
+
+# ----- Accept new user input -----
+print("\nEnter employee details to estimate salary:\n")
+
+input_data = {}
+for feature in X.columns:
+    if feature in label_encoders:
+        options = list(label_encoders[feature].classes_)
+        print(f"{feature} options: {options}")
+        value = input(f"Enter {feature}: ")
+        # Convert input to match encoded values
+        if feature == 'marital-status':
+            processed_value = value.capitalize() # use capitalize() for sentence case
+        else:
+            processed_value = value.title() # use title() for title case
+
+        try:
+            encoded_value = label_encoders[feature].transform([processed_value])[0]
+        except:
+            raise ValueError(f"Invalid input '{value}' for {feature}. Please use one of the following: {options}")
+        input_data[feature] = encoded_value
+    else:
+        value = input(f"Enter {feature} (numeric): ")
+        try:
+            numeric_value = float(value)
+        except ValueError:
+             raise ValueError(f"Invalid input '{value}' for {feature}. Please enter a numeric value.")
+        input_data[feature] = numeric_value
+
+# Create DataFrame for prediction
+input_df = pd.DataFrame([input_data])
+
+# Predict salary
+predicted_salary = model.predict(input_df)[0]
+print(f"\n💰 Predicted Salary: {predicted_salary:.2f}")
